@@ -6,7 +6,7 @@ nwr member Burkholderia |
     tsv-summarize -H -g rank --count |
     mlr --itsv --omd cat |
     perl -nl -e 's/-\s*\|$/-:|/; print'
-```
+
 | rank | count |
 | --- | ---:|
 | genus | 1 |
@@ -32,7 +32,7 @@ nwr lineage Burkholderia |
 | order | Burkholderiales | 80840 |
 | family | Burkholderiaceae | 119060 |
 | *genus* | Burkholderia | 32008 |
-
+```
 ### Species with assemblies 具有组装的物种
 
 Burkholderiaceae 是细菌界中的一个科
