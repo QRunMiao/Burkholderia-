@@ -137,13 +137,12 @@ echo "
         *
     FROM ar
     WHERE 1=1
-        AND genus IN ('Saccharomyces')
-        AND refseq_category IN ('reference genome')
-    " |
+        AND genus IN ('Saccharothrix')
+            " |
     sqlite3 -tabs ~/.nwr/ar_refseq.sqlite |
     tsv-select -H -f organism_name,species,genus,ftp_path,biosample,assembly_level,assembly_accession \
     > raw.tsv
-  #酵母菌属的参考菌株的基因组信息
+  #菌属的参考菌株的基因组信息
 
 # RS
 SPECIES=$(
@@ -220,7 +219,7 @@ cat raw.tsv |
     tsv-filter --or --str-in-fld 2:ftp --str-in-fld 2:http |
     keep-header -- tsv-sort -k4,4 -k1,1 \
     > Burkholderia.assembly.tsv
- #创建简写名称的木霉属水平的各菌株基因组下载文件
+ #创建简写名称的伯克霍尔德属水平的各菌株基因组下载文件
 
  datamash check < Burkholderia.assembly.tsv
  #6476 lines, 5 fields
@@ -235,7 +234,7 @@ cat Burkholderia.assembly.tsv |
     # 检查下载链接是否正确
 
 # Save the file to another directory to prevent accidentally changing it
-# cp Burkholderia.assembly.tsv /mnt/c/shengxin/data/Burkholderia/assembly/
+cp Burkholderia.assembly.tsv /mnt/c/shengxin/data/Burkholderia/assembly/
 
 # Cleaning
 rm raw*.*sv
@@ -248,7 +247,7 @@ Strains.taxon.tsv - 分类信息：物种、属、科、目和类
 ```shell
 cd /mnt/c/shengxin/data/Burkholderia
 
-nwr template assembly/Burkholderia.assembly.tsv \
+nwr template summary/Burkholderia.assembly.tsv \
     --count \
     --rank genus
 
@@ -273,6 +272,8 @@ bash Count/rank.sh
 
 #genus.lst 文件只有一列，提取了属的名称
 #genus.count.tsv 统计伯克霍尔德属以及各属的species和strains去重后的数量
+
+mv Count/genus.count.tsv Count/genus.before.tsv
 
 cat Count/genus.before.tsv |
     mlr --itsv --omd cat |
@@ -300,9 +301,10 @@ cat Count/genus.before.tsv |
 | Quisquiliibacterium | 1 | 1 |
 | Ralstonia | 11 | 689 |
 | Robbsia | 1 | 5 |
-| Saccharomyces | 1 | 1 |
+| Saccharothrix | 1 | 1 |
 | Trinickia | 7 | 15 |
 | Zeimonas | 2 | 2 |
+
 
 ### Download and check 下载并检查
 ```shell
@@ -322,18 +324,18 @@ nwr template ../Burkholderia/assembly/Burkholderia.assembly.tsv\
 bash ASSEMBLY/rsync.sh
 
 #这步速度太慢了，复制超算中ASSEMBLY的部分文件到我的超算中
-cp -r ~/data/Bacteria/ASSEMBLY/Burkholderia_* ~/qyl/data/Burkholderia
-cp -r ~/data/Bacteria/ASSEMBLY/Cupriavidus_* ~/qyl/data/Burkholderia/ASSEMBLY
-cp -r ~/data/Bacteria/ASSEMBLY/Pandoraea_* ~/qyl/data/Burkholderia/ASSEMBLY
-cp -r ~/data/Bacteria/ASSEMBLY/Paraburkholderia_* ~/qyl/data/Burkholderia/ASSEMBLY
-cp -r ~/data/Bacteria/ASSEMBLY/Polynucleobacter_* ~/qyl/data/Burkholderia/ASSEMBLY
-cp -r ~/data/Bacteria/ASSEMBLY/Ralstonia_* ~/qyl/data/Burkholderia/ASSEMBLY
+cp -r Bacteria/ASSEMBLY/Burkholderia_* ~/qyl/data/Burkholderia
+cp -r Bacteria/ASSEMBLY/Cupriavidus_* ~/qyl/data/Burkholderia/ASSEMBLY
+cp -r Bacteria/ASSEMBLY/Pandoraea_* ~/qyl/data/Burkholderia/ASSEMBLY
+cp -r Bacteria/ASSEMBLY/Paraburkholderia_* ~/qyl/data/Burkholderia/ASSEMBLY
+cp -r Bacteria/ASSEMBLY/Polynucleobacter_* ~/qyl/data/Burkholderia/ASSEMBLY
+cp -r Bacteria/ASSEMBLY/Ralstonia_* ~/qyl/data/Burkholderia/ASSEMBLY
 
 #下载到本地
 rsync -avP \
 wangq@202.119.37.251:qyl/data/Burkholderia/ASSEMBLY \
 /mnt/c/shengxin/data/Burkholderia
-#超算上运行此命令
+
 
 # Check md5; create check.lst
 # rm ASSEMBLY/check.lst
@@ -354,10 +356,10 @@ cat ASSEMBLY/n50.tsv |
 #5805    1550368 1888
 
 cat ASSEMBLY/n50.tsv |
-    tsv-summarize -H --quantile "S:0.1,0.5" --quantile "N50:0.1,0.5"  --quantile "C:0.5,0.9"
+    tsv-summarize -H --quantile "S:0,0.5" --quantile "N50:0,0.5"  --quantile "C:0.5,0.9"
     #计算数据的分位数
 #S_pct10 S_pct50 N50_pct10       N50_pct50       C_pct50 C_pct90
-#5555984 7123830 73229.2 201283  96      234
+#1027029 7123830 1203    201283  96      234
 
 # Collect; create collect.tsv
 bash ASSEMBLY/collect.sh
@@ -394,17 +396,17 @@ cat ASSEMBLY/counts.tsv |
 ```bash
 rsync -avP \
     /mnt/c/shengxin/data/Burkholderia/assembly/ \
-    wangq@202.119.37.251:qyl/data/Burkholderia/ASSEMBLY
+    wangq@20219.37.251:qyl/data/Burkholderia/ASSEMBLY
 #本地运行
 
 rsync -avP \
     /mnt/c/shengxin/data/Burkholderia/summary/ \
-    wangq@202.119.37.251:qyl/data/Burkholderia/summary
+    wangq@20219.37.251:qyl/data/Burkholderia/summary
 ```
 
 ## BioSample 生物样本
 ```shell
-cd ~/qyl/data/Burkholderia
+cd /mnt/c/shengxin/data/Burkholderia
 
 ulimit -n `ulimit -Hn`
 
@@ -423,7 +425,7 @@ bash BioSample/download.sh
 bash BioSample/collect.sh 10
 
 datamash check < BioSample/biosample.tsv
-#6472 lines, 107 fields
+#6473 lines, 107 fields
 
 cp Biosample/attributes.lst summary/ 
 cp Biosample/biosample.tsv summary/
@@ -434,7 +436,7 @@ Parab_fer_NBRC_106233_GCF_000685035_1   SAMD00000356    NBRC 106233     free liv
 
 rsync -avP \
     /mnt/c/shengxin/data/Burkholderia/Biosample/ \
-    wangq@202.119.37.251:qyl/data/Burkholderia/Biosample
+    wangq@20219.37.251:qyl/data/Burkholderia/Biosample
 ```
 
 ## MinHash
@@ -472,13 +474,14 @@ bash MinHash/nr.sh
 bash MinHash/dist.sh
 
 rsync -avP \
-    wangq@202.119.37.251:/share/home/wangq/qyl/data/Burkholderia/Biosample/ \
+    wangq@20219.37.251:/share/home/wangq/qyl/data/Burkholderia/Biosample/ \
     /mnt/c/shengxin/data/Burkholderia/Biosample
 
 rsync -avP \
-    wangq@202.119.37.251:/share/home/wangq/qyl/data/Burkholderia/MinHash/ \
+    wangq@20219.37.251:/share/home/wangq/qyl/data/Burkholderia/MinHash/ \
     /mnt/c/shengxin/data/Burkholderia/MinHash
     #本地运行   
+
 ```
 
 ### Condense branches in the minhash tree
@@ -486,7 +489,7 @@ rsync -avP \
 mkdir -p cd /mnt/c/shengxin/data/Burkholderia/tree
 cd /mnt/c/shengxin/data/Burkholderia/tree
 
-nw_reroot ../MinHash/tree.nwk S_cer_S288C |
+nw_reroot ../MinHash/tree.nwk S_vio |
     nw_order -cn - \
     > minhash.reroot.newick
 
@@ -559,29 +562,58 @@ cp Count/strains.taxon.tsv summary/genome.taxon.tsv
 ```
 | genus | #species | #strains |
 |---|--:|--:|
-| Burkholderia | 26 | 2273 |
-| Caballeronia | 21 | 30 |
+| Burkholderia | 41 | 3969 |
+| Caballeronia | 23 | 36 |
 | Chitinasiproducens | 1 | 1 |
 | Chitinimonas | 3 | 4 |
-| Cupriavidus | 17 | 70 |
+| Cupriavidus | 21 | 117 |
 | Ephemeroptericola | 1 | 1 |
 | Formosimonas | 1 | 1 |
 | Lautropia | 2 | 5 |
 | Limnobacter | 3 | 3 |
 | Mycetohabitans | 2 | 2 |
 | Mycoavidus | 1 | 1 |
-| Pandoraea | 24 | 56 |
-| Paraburkholderia | 70 | 164 |
+| Pandoraea | 28 | 64 |
+| Paraburkholderia | 83 | 218 |
 | Pararobbsia | 2 | 2 |
-| Polynucleobacter | 28 | 153 |
+| Polynucleobacter | 29 | 157 |
 | Quisquiliibacterium | 1 | 1 |
-| Ralstonia | 9 | 87 |
+| Ralstonia | 11 | 211 |
 | Robbsia | 1 | 4 |
-| Saccharomyces | 1 | 1 |
-| Trinickia | 5 | 9 |
+| Saccharothrix | 1 | 1 |
+| Trinickia | 7 | 14 |
 | Zeimonas | 2 | 2 |
 
 
+| genus | #species | #strains |
+|---|--:|--:|
+| Burkholderia | 41 | 3969 |
+| Caballeronia | 23 | 36 |
+| Chitinasiproducens | 1 | 1 |
+| Chitinimonas | 3 | 4 |
+| Cupriavidus | 21 | 117 |
+| Ephemeroptericola | 1 | 1 |
+| Formosimonas | 1 | 1 |
+| Lautropia | 2 | 5 |
+| Limnobacter | 3 | 3 |
+| Mycetohabitans | 2 | 2 |
+| Mycoavidus | 1 | 1 |
+| Pandoraea | 28 | 64 |
+| Paraburkholderia | 83 | 218 |
+| Pararobbsia | 2 | 2 |
+| Polynucleobacter | 29 | 157 |
+| Quisquiliibacterium | 1 | 1 |
+| Ralstonia | 11 | 211 |
+| Robbsia | 1 | 4 |
+| Saccharothrix | 1 | 1 |
+| Trinickia | 7 | 14 |
+| Zeimonas | 2 | 2 |
+qin@Qin:/mnt/c/shengxin/data/Burkholderia$ bash Count/lineage.sh
+==> Count/lineage.sh <==
+==> Done.
+qin@Qin:/mnt/c/shengxin/data/Burkholderia$ cat Count/lineage.count.tsv |
+>     mlr --itsv --omd cat |
+>     perl -nl -e 's/-\s*\|$/-:|/; print'
 | #family | genus | species | count |
 | --- | --- | --- | ---:|
 | Burkholderiaceae | Burkholderia | Burkholderia aenigmatica | 20 |
@@ -847,7 +879,7 @@ cp Count/strains.taxon.tsv summary/genome.taxon.tsv
 |  |  | Trinickia symbiotica | 3 |
 |  | Zeimonas | Zeimonas arvi | 1 |
 |  |  | Zeimonas sediminis | 1 |
-| Saccharomycetaceae | Saccharomyces | Saccharomyces cerevisiae | 1 |
+| Pseudonocardiaceae | Saccharothrix | Saccharothrix violaceirubra | 1 |
 
 ### For *protein families* #用于*蛋白质家族*
 
@@ -895,10 +927,11 @@ cp Count/strains.taxon.tsv summary/protein.taxon.tsv
 | Quisquiliibacterium | 1 | 1 |
 | Ralstonia | 11 | 207 |
 | Robbsia | 1 | 4 |
-| Saccharomyces | 1 | 1 |
+| Saccharothrix | 1 | 1 |
 | Trinickia | 7 | 14 |
 | Zeimonas | 2 | 2 |
-## Collect proteins
+
+## Collect Protein
 
 ```shell
 cd /mnt/c/shengxin/data/Burkholderia/
@@ -914,7 +947,7 @@ nwr template /mnt/c/shengxin/data/Burkholderia/assembly/Burkholderia.assembly.ts
 #         * species.tsv
 #     * collect.sh
 
-# collect proteins
+# collect Protein
 bash Protein/collect.sh
 
 cat Protein/counts.tsv |
@@ -922,15 +955,15 @@ cat Protein/counts.tsv |
 ```
 | #item | count |
 | --- | --- |
-| Proteins | 29,719,225 |
-| Unique headers and annotations | 6,971,502 |
-| Unique proteins | 6,888,836 |
-| all.replace.fa | 29,719,225 |
-| all.annotation.tsv | 29,719,226 |
-| all.info.tsv | 29,719,226 |
+| Proteins | 29,719,431 |
+| Unique headers and annotations | 6,971,708 |
+| Unique proteins | 6,889,042 |
+| all.replace.fa | 29,719,431 |
+| all.annotation.tsv | 29,719,432 |
+| all.info.tsv | 29,719,432 |
 ## Phylogenetics with bac120 #系统发育
 
-### Find corresponding proteins by `hmmsearch` #通过`hmmsearch`查找相应的蛋白质
+### Find corresponding Protein by `hmmsearch` #通过`hmmsearch`查找相应的蛋白质
 
 ```shell
 cd /mnt/c/shengxin/data/Burkholderia/
@@ -957,24 +990,26 @@ E_VALUE=1e-20
 ```
 # 建立蛋白树
 ```shell
-awk -F'\t' '{print $2 "_" $1}' Protein/replace.tsv > Protein/3.tsv
-
 cd /mnt/c/shengxin/data/Burkholderia/
+cat Protein/replace.tsv | tsv-select -f 2,1 > Protein/3.tsv
 faops some Protein/all.replace.fa.gz <(tsv-select -f 1 Protein/3.tsv) Protein/DddA-like.fa
+#Protein/3.tsv格式是B_pseudoma_UMC107_GCF_002921075_1_WP_004533223，
+#zcat Protein/all.replace.fa.gz |head 显示格式是>B_aenigmatica_AU17325_GCF_002223275_1_WP_000522996
+所以要将Protein/3.tsv中变成B_pseudoma_UMC107_GCF_002921075_1_WP_004533223，可以直接在vscode中进行替换 #要转义.1，是\.1 
 
 muscle -in Protein/DddA-like.fa -out Protein/DddA-like.aln.fa
 
 FastTree Protein/DddA-like.aln.fa > Protein/DddA-like.aln.newick
 
-nw_reroot Protein/DddA-like.aln.newick $(nw_labels Protein/DddA-like.aln.newick | grep -E "S_cer_S288C") |
+nw_reroot Protein/DddA-like.aln.newick $(nw_labels Protein/DddA-like.aln.newick | grep -E "S_vio") |
     nw_order -c n - \
-    > Protein/DddA-like.reoot.newick
+    > Tree/DddA-like.reoot.newick
 
 nw_display -s -b 'visibility:hidden' -w 1200 -v 20 Protein/DddA-like.reoot.newick | rsvg-convert -o tree/DddA-like.reoot.png
 ```
 ## Phylogenetics with bac120 #系统发育
 
-### Find corresponding proteins by `hmmsearch` #通过`hmmsearch`查找相应的蛋白质
+### Find corresponding Protein by `hmmsearch` #通过`hmmsearch`查找相应的蛋白质
 ```shell
 #TIGRFAM
 mkdir -p mnt/shengxin/data/Burkholderia/HMM/TIGRFAM
@@ -1021,10 +1056,10 @@ E_VALUE=1e-20
 
 # Find all genes
 cd /mnt/c/shengxin/data/Burkholderia/
-cat Protein/species.tsv |cut -f 1 >Protein/1.tsv
+cat Protein/replace.tsv |cut -f 2 >Protein/1.tsv
 cat Protein/species.tsv |tsv-join -f Protein/1.tsv -k 1 -d 1 >Protein/2.tsv
-
 cat Protein/2.tsv | tsv-select -f 2,1 > temp.tsv
+
 for marker in $(cat HMM/bac120/bac120.tsv | cut -f 1); do
     >&2 echo "==> marker [${marker}]"
 
@@ -1054,24 +1089,26 @@ cat HMM/bac120/bac120.tsv | cut -f 1 |
             wc -l
     ' |
     tsv-summarize --quantile 1:0.25,0.5,0.75
+#1414    1415    1815.25
 
 cat HMM/bac120/bac120.tsv | cut -f 1 |
     parallel --no-run-if-empty --linebuffer -k -j 4 '
         echo {}
         cat Protein/{}/replace.tsv |
             wc -l
+
     ' |
     paste - - |
-    tsv-filter --invert --ge 2:1800 --le 2:2600 |
+    tsv-filter --invert --ge 2:1300 --le 2:1500 |
     cut -f 1 \
     > Protein/bac120.omit.lst
 
 # Extract sequences
 # Multiple copies slow down the alignment process
-cat HMM/marker.lst |
-    grep -v -Fx -f Protein/marker.omit.lst |
+cat HMM/bac120/bac120.tsv | cut -f 1 |
+    grep -v -Fx -f Protein/bac120.omit.lst |
     parallel --no-run-if-empty --linebuffer -k -j 4 '
-        echo >&2 "==> marker [{}]"
+        >&2 echo "==> marker [{}]"
 
         cat Protein/{}/replace.tsv \
             > Protein/{}/{}.replace.tsv
@@ -1085,21 +1122,19 @@ cat HMM/marker.lst |
     '
 
 # Align each markers with muscle
-cat HMM/marker.lst |
+cat HMM/bac120/bac120.tsv | cut -f 1 |
     parallel --no-run-if-empty --linebuffer -k -j 8 '
-        echo >&2 "==> marker [{}]"
+        >&2 echo "==> marker [{}]"
         if [ ! -s Protein/{}/{}.pro.fa ]; then
-            exit
-        fi
-        if [ -s Protein/{}/{}.aln.fa ]; then
             exit
         fi
 
         muscle -quiet -in Protein/{}/{}.pro.fa -out Protein/{}/{}.aln.fa
     '
 
-for marker in $(cat HMM/marker.lst); do
-    echo >&2 "==> marker [${marker}]"
+
+for marker in $(cat HMM/bac120/bac120.tsv |cut -f 1); do
+    >&2 echo "==> marker [${marker}]"
     if [ ! -s Protein/${marker}/${marker}.pro.fa ]; then
         continue
     fi
@@ -1118,7 +1153,7 @@ for marker in $(cat HMM/marker.lst); do
 done
 
 # Concat marker genes
-for marker in $(cat HMM/marker.lst); do
+for marker in $(cat HMM/bac120/bac120.tsv |cut -f 1); do
     if [ ! -s Protein/${marker}/${marker}.pro.fa ]; then
         continue
     fi
@@ -1132,32 +1167,32 @@ for marker in $(cat HMM/marker.lst); do
     # empty line for .fas
     echo
 done \
-    > Protein/fungi61.aln.fas
+    > Protein/bac120.aln.fas
 
-cat Protein/species.tsv |
-    tsv-join -f ASSEMBLY/pass.lst -k 1 |
-    tsv-join -e -f MinHash/abnormal.lst -k 1 |
-    tsv-join -e -f ASSEMBLY/omit.lst -k 1 |
-    cut -f 1 |
-    fasops concat Protein/fungi61.aln.fas stdin -o Protein/fungi61.aln.fa
+cat Protein/replace.tsv | cut -f 2 | sort | uniq |
+    fasops concat Protein/bac120.aln.fas stdin -o Protein/bac120.aln.fa
 
 # Trim poorly aligned regions with `TrimAl`
-trimal -in Protein/fungi61.aln.fa -out Protein/fungi61.trim.fa -automated1
+trimal -in Protein/bac120.aln.fa -out Protein/bac120.trim.fa -automated1
 
-faops size Protein/fungi61.*.fa |
+faops size Protein/bac120.*.fa |
     tsv-uniq -f 2 |
     cut -f 2
-#28706
-#20432
+#31965
+#27534
 
 # To make it faster
-FastTree -fastest -noml Protein/fungi61.trim.fa > Protein/fungi61.trim.newick
+FastTree -fastest -noml Protein/bac120.trim.fa > Protein/bac120.trim.newick
 
-nw_reroot Protein/fungi61.trim.newick S_cer_S288C |
+nw_reroot Protein/bac120.trim.newick S_vio |
     nw_order -c n - \
-    > Protein/fungi61.reroot.newick
+    > tree/bac120.reroot.newick
 
 # png
-nw_display -s -b 'visibility:hidden' -w 1200 -v 20 Protein/fungi61.reroot.newick |
+nw_display -s -b 'visibility:hidden' -w 1200 -v 20 Protein/bac120.reroot.newick |
     rsvg-convert -o tree/Burkholderia.marker.png
+
+rsync -avP \
+    /mnt/c/shengxin/data/Burkholderia/assembly/ \
+    wangq@202.119.37.251:/share/home/wangq/qyl/data/Burkholderia/ASSEMBLY
 ```
