@@ -1,53 +1,50 @@
 ### List all ranks 列出所有等级
 
 ```shell
-nwr member Burkholderia |
+nwr member Frankiaceae |
     grep -v " sp." |
     tsv-summarize -H -g rank --count |
     mlr --itsv --omd cat |
     perl -nl -e 's/-\s*\|$/-:|/; print'
 ```
-| rank          | count |
-| ------------- | ----: |
-| genus         |     1 |
-| species       |    57 |
-| no rank       |    15 |
-| species group |     2 |
-| strain        |   299 |
-| subspecies    |     1 |
+| rank | count |
+| --- | ---:|
+| family | 1 |
+| genus | 4 |
+| no rank | 5 |
+| species | 33 |
+| strain | 1 |
 ```shell
-nwr lineage Burkholderia |
+nwr lineage Frankiaceae |
     tsv-filter --str-ne 1:clade |
     tsv-filter --str-ne "1:no rank" |
     sed -n '/kingdom\tBacteria/,$p' |
-    sed -E "s/\b(genus)\b/*\1*/"| # Highlight genus
-    (echo -e '#rank\tsci_name\ttax_id' && cat) |
+        (echo -e '#rank\tsci_name\ttax_id' && cat) |
     mlr --itsv --omd cat
 
- #查看伯克霍尔德属的分类上的基本情况   
+ #查看弗兰克氏属的分类上的基本情况   
 ```
-| #rank        | sci_name           | tax_id |
-| ------------ | ------------------ | ------ |
-| superkingdom | Bacteria           | 2      |
-| phylum       | Pseudomonadota     | 1224   |
-| class        | Betaproteobacteria | 28216  |
-| order        | Burkholderiales    | 80840  |
-| family       | Burkholderiaceae   | 119060 |
-| *genus*      | Burkholderia       | 32008  |
+| #rank | sci_name | tax_id |
+| --- | --- | --- |
+| superkingdom | Bacteria | 2 |
+| phylum | Actinomycetota | 201174 |
+| class | Actinomycetes | 1760 |
+| order | Frankiales | 85013 |
+| family | Frankiaceae | 74712 |
 
 ### Species with assemblies 具有组装的物种
 
-Burkholderiaceae 是细菌界中的一个科
+Frankiaceae 是细菌界中的一个科
 
 ```shell
 cd /mnt/c/shengxin
-mkdir -p data/Burkholderia/summary
-cd /mnt/c/shengxin/data/Burkholderia/summary
+mkdir -p data/Frankiaceae/summary
+cd /mnt/c/shengxin/data/Frankiaceae/summary
 
-#找出和伯克霍尔德同一科(Burkholderiaceae)的所有属
+#找出和弗兰克氏科(Frankiaceae)的所有属
 
 # should have a valid name of genus
-nwr member Burkholderiaceae -r genus |
+nwr member Frankiaceae -r genus |
     grep -v -i "Candidatus " |
     grep -v -i "candidate " |
     grep -v " sp." |
@@ -57,10 +54,10 @@ nwr member Burkholderiaceae -r genus |
     > genus.list.tsv
 
 wc -l genus.list.tsv
-# 23 genus.list.tsv
+# 4 genus.list.tsv
 
-#伯克霍尔德同属的所有参考物种基因组信息
-head genus.list.tsv | cut -f 1 |
+#所有参考物种基因组信息
+cat genus.list.tsv | cut -f 1 |
 while read RANK_ID; do
     echo "
         SELECT
@@ -81,7 +78,7 @@ done |
     tsv-sort -k2,2 \
     > RS1.tsv
 
-#伯克霍尔德同属的所有物种信息(genbank)
+#弗兰克氏同属的所有物种信息(genbank)
 cat genus.list.tsv | cut -f 1 |
 while read RANK_ID; do
     echo "
@@ -104,9 +101,9 @@ done |
     > GB1.tsv
 
 wc -l RS*.tsv GB*.tsv
-# 276 RS1.tsv
-# 281 GB1.tsv
-# 557 total
+# 17 RS1.tsv
+# 18 GB1.tsv
+# 35 total
 
 for C in RS GB; do
     for N in $(seq 1 1 10); do
@@ -117,8 +114,8 @@ for C in RS GB; do
         fi
     done
 done
-#RS1     5695
-#GB1     6474
+#RS1     23
+#GB1     25
 
 ```
 
@@ -127,22 +124,7 @@ done
 ### Create .assembly.tsv
 
 ```shell
-cd /mnt/c/shengxin/data/Burkholderia/summary
-
-# Reference genome
-echo "
-.headers ON
-
-    SELECT
-        *
-    FROM ar
-    WHERE 1=1
-        AND genus IN ('Saccharothrix')
-            " |
-    sqlite3 -tabs ~/.nwr/ar_refseq.sqlite |
-    tsv-select -H -f organism_name,species,genus,ftp_path,biosample,assembly_level,assembly_accession \
-    > raw.tsv
-  #菌属的参考菌株的基因组信息
+cd /mnt/c/shengxin/data/Frankiaceae/summary
 
 # RS
 SPECIES=$(
@@ -153,18 +135,19 @@ SPECIES=$(
 )
 
 echo "
+.headers ON
+
     SELECT
-        species || ' ' || infraspecific_name || ' ' || assembly_accession AS name,
-        species, genus, ftp_path, biosample, assembly_level,
-        assembly_accession
+        *
     FROM ar
     WHERE 1=1
         AND species_id IN ($SPECIES)
         AND genome_rep IN ('Full')
     " |
-    sqlite3 -tabs ~/.nwr/ar_refseq.sqlite \
-    >> raw.tsv
- # 伯克霍尔德同科的各属的参考菌株基因组信息
+    sqlite3 -tabs ~/.nwr/ar_refseq.sqlite |
+    tsv-select -H -f organism_name,species,genus,ftp_path,biosample,assembly_level,assembly_accession \
+    > raw.tsv
+ # 弗兰克氏同科的各属的参考菌株基因组信息
 
 # Preference for refseq
 cat raw.tsv |
@@ -192,19 +175,19 @@ echo "
     sqlite3 -tabs ~/.nwr/ar_genbank.sqlite |
     tsv-join -f rs.acc.tsv -k 1 -d 7 -e \
     >> raw.tsv
- #伯克霍尔德同科的各属的菌株基因组信息
+ #弗兰克氏同科的各属的菌株基因组信息
 
 cat raw.tsv |
     tsv-uniq |
     datamash check
-#6476 lines, 7 fields
+#26 lines, 7 fields
 
 # Create abbr.
 cat raw.tsv |
     grep -v '^#' |
     tsv-uniq |
     tsv-select -f 1-6 |
-    perl abbr_name.pl -c "1,2,3" -s '\t' -m 3 --shortsub |
+    perl ../../abbr_name.pl -c "1,2,3" -s '\t' -m 3 --shortsub |
     (echo -e '#name\tftp_path\tbiosample\tspecies\tassembly_level' && cat ) |
     perl -nl -a -F"," -e '
         BEGIN{my %seen};
@@ -218,23 +201,23 @@ cat raw.tsv |
         ' |
     tsv-filter --or --str-in-fld 2:ftp --str-in-fld 2:http |
     keep-header -- tsv-sort -k4,4 -k1,1 \
-    > Burkholderia.assembly.tsv
- #创建简写名称的伯克霍尔德属水平的各菌株基因组下载文件
+    > Frankiaceae.assembly.tsv
+ #创建简写名称的弗兰克氏属水平的各菌株基因组下载文件
 
- datamash check < Burkholderia.assembly.tsv
- #6476 lines, 5 fields
+ datamash check < Frankiaceae.assembly.tsv
+ #26 lines, 5 fields
 
 # find potential duplicate strains or assemblies 
-cat Burkholderia.assembly.tsv |
+cat Frankiaceae.assembly.tsv |
     tsv-uniq -f 1 --repeated
 #检查有没有重复
 
-cat Burkholderia.assembly.tsv |
+cat Frankiaceae.assembly.tsv |
     tsv-filter --str-not-in-fld 2:ftp
     # 检查下载链接是否正确
 
 # Save the file to another directory to prevent accidentally changing it
-cp Burkholderia.assembly.tsv /mnt/c/shengxin/data/Burkholderia/assembly/
+cp Frankiaceae.assembly.tsv /mnt/c/shengxin/data/Frankiaceae/assembly/
 
 # Cleaning
 rm raw*.*sv
@@ -245,9 +228,9 @@ rm raw*.*sv
 Strains.taxon.tsv - 分类信息：物种、属、科、目和类
 
 ```shell
-cd /mnt/c/shengxin/data/Burkholderia
+cd /mnt/c/shengxin/data/Frankiaceae
 
-nwr template summary/Burkholderia.assembly.tsv \
+nwr template summary/Frankiaceae.assembly.tsv \
     --count \
     --rank genus
 
@@ -255,23 +238,20 @@ nwr template summary/Burkholderia.assembly.tsv \
 bash Count/strains.sh #strains.taxon.tsv共6列，是为了统计各个菌株的数量以及所在的物种，属，科，目，纲的数量
 
 #taxa.tsv内容
-item	count
-strain	6475
-species	282
-genus	23
-family	2
-order	2
-class	2
+item    count
+strain  25
+species 18
+genus   4
+family  1
+order   1
+class   1
 
-#strains.taxon.tsv内容
-B_aenigmatica_AU17325_GCF_002223275_1	Burkholderia aenigmatica	Burkholderia	Burkholderiaceae	Burkholderiales	Betaproteobacteria
-B_aenigmatica_BCC0217_GCF_902500525_1	Burkholderia aenigmatica	Burkholderia	Burkholderiaceae	Burkholderiales	Betaproteobacteria
 
 # genus.lst and genus.count.tsv
 bash Count/rank.sh
 
 #genus.lst 文件只有一列，提取了属的名称
-#genus.count.tsv 统计伯克霍尔德属以及各属的species和strains去重后的数量
+#genus.count.tsv 统计弗兰克氏属以及各属的species和strains去重后的数量
 
 mv Count/genus.count.tsv Count/genus.before.tsv
 
@@ -279,37 +259,17 @@ cat Count/genus.before.tsv |
     mlr --itsv --omd cat |
     perl -nl -e 'm/^\|\s*---/ and print qq(|---|--:|--:|) and next; print'
 ```
-| genus               | #species | #strains |
-| ------------------- | -------: | -------: |
-| Burkholderia        |       41 |     4965 |
-| Caballeronia        |       28 |       50 |
-| Chitinasiproducens  |        1 |        1 |
-| Chitinimonas        |        3 |        4 |
-| Cupriavidus         |       22 |      155 |
-| Ephemeroptericola   |        1 |        1 |
-| Formosimonas        |        1 |        1 |
-| Hydromonas          |        1 |        1 |
-| Lautropia           |        2 |       19 |
-| Limnobacter         |        3 |        3 |
-| Mycetohabitans      |        2 |        2 |
-| Mycoavidus          |        1 |        1 |
-| Pandoraea           |       28 |       79 |
-| Paraburkholderia    |       91 |      266 |
-| Pararobbsia         |        2 |        2 |
-| Paucimonas          |        1 |        2 |
-| Polynucleobacter    |       31 |      210 |
-| Quisquiliibacterium |        1 |        1 |
-| Ralstonia           |       11 |      689 |
-| Robbsia             |        1 |        5 |
-| Saccharothrix       |        1 |        1 |
-| Trinickia           |        7 |       15 |
-| Zeimonas            |        2 |        2 |
-
+| genus | #species | #strains |
+|---|--:|--:|
+| Frankia | 7 | 14 |
+| Parafrankia | 5 | 5 |
+| Protofrankia | 3 | 3 |
+| Pseudofrankia | 3 | 3 |
 
 ### Download and check 下载并检查
 ```shell
-cd /mnt/c/shengxin/data/Burkholderia
-nwr template ../Burkholderia/assembly/Burkholderia.assembly.tsv\
+cd /mnt/c/shengxin/data/Frankiaceae
+nwr template ../Frankiaceae/assembly/Frankiaceae.assembly.tsv\
     --ass
 
 # --ass: ASSEMBLY/
@@ -322,20 +282,6 @@ nwr template ../Burkholderia/assembly/Burkholderia.assembly.tsv\
 
 # Run
 bash ASSEMBLY/rsync.sh
-
-#这步速度太慢了，复制超算中ASSEMBLY的部分文件到我的超算中
-cp -r Bacteria/ASSEMBLY/Burkholderia_* ~/qyl/data/Burkholderia
-cp -r Bacteria/ASSEMBLY/Cupriavidus_* ~/qyl/data/Burkholderia/ASSEMBLY
-cp -r Bacteria/ASSEMBLY/Pandoraea_* ~/qyl/data/Burkholderia/ASSEMBLY
-cp -r Bacteria/ASSEMBLY/Paraburkholderia_* ~/qyl/data/Burkholderia/ASSEMBLY
-cp -r Bacteria/ASSEMBLY/Polynucleobacter_* ~/qyl/data/Burkholderia/ASSEMBLY
-cp -r Bacteria/ASSEMBLY/Ralstonia_* ~/qyl/data/Burkholderia/ASSEMBLY
-
-#下载到本地
-rsync -avP \
-wangq@202.119.37.251:qyl/data/Burkholderia/ASSEMBLY/pass.lst \
-/mnt/c/shengxin/data/Burkholderia
-
 
 # Check md5; create check.lst
 # rm ASSEMBLY/check.lst
@@ -353,13 +299,13 @@ cat ASSEMBLY/n50.tsv |
     tsv-summarize -H --min "N50,S" --max "C"
 
 #N50_min S_min   C_max
-#5805    1550368 1888
+#12493   4969352 931
 
 cat ASSEMBLY/n50.tsv |
     tsv-summarize -H --quantile "S:0,0.5" --quantile "N50:0,0.5"  --quantile "C:0.5,0.9"
     #计算数据的分位数
 #S_pct10 S_pct50 N50_pct10       N50_pct50       C_pct50 C_pct90
-#1027029 7123830 1203    201283  96      234
+#4969352 7497934 8186    73976   195     816.4
 
 # Collect; create collect.tsv
 bash ASSEMBLY/collect.sh
@@ -373,18 +319,18 @@ cp ASSEMBLY/collect.pass.tsv summary/
 cat ASSEMBLY/counts.tsv |
     mlr --itsv --omd cat |
     perl -nl -e 'm/^\|\s*---/ and print qq(|---|--:|--:|) and next; print'
-
-| #item            | fields | lines |
-| ---------------- | -----: | ----: |
-| url.tsv          |      3 | 6,475 |
-| check.lst        |      1 | 6,475 |
-| collect.tsv      |     20 | 6,476 |
-| n50.tsv          |      4 | 6,476 |
-| n50.pass.tsv     |      4 | 5,308 |
-| collect.pass.tsv |     23 | 5,308 |
-| pass.lst         |      1 | 5,307 |
-| omit.lst         |      1 |   225 |
-| rep.lst          |      1 |   268 |
+    
+| #item | fields | lines |
+|---|--:|--:|
+| url.tsv | 3 | 25 |
+| check.lst | 1 | 25 |
+| collect.tsv | 20 | 26 |
+| n50.tsv | 4 | 26 |
+| n50.pass.tsv | 4 | 12 |
+| collect.pass.tsv | 23 | 12 |
+| pass.lst | 1 | 11 |
+| omit.lst | 1 | 2 |
+| rep.lst | 1 | 11 |
 
 # 统计下载的文件行数：
 # collect.pass.tsv ：下载的基因组通过了n50的检验 -5308行（有一行标题）；pass.lst 5307行（不含标题），取collect.pass.tsv的第一列名称。
@@ -395,28 +341,28 @@ cat ASSEMBLY/counts.tsv |
 
 ```bash
 rsync -avP \
-    /mnt/c/shengxin/data/Burkholderia/assembly/ \
-    wangq@202.119.37.251:qyl/data/Burkholderia/ASSEMBLY
+    /mnt/c/shengxin/data/Frankiaceae/assembly/ \
+    wangq@20219.37.251:qyl/data/Frankiaceae/ASSEMBLY
 #本地运行
 
 rsync -avP \
-    /mnt/c/shengxin/data/Burkholderia/summary/ \
-    wangq@202.119.37.251:qyl/data/Burkholderia/summary
+    /mnt/c/shengxin/data/Frankiaceae/summary/ \
+    wangq@20219.37.251:qyl/data/Frankiaceae/summary
 ```
 
 ## BioSample 生物样本
 ```shell
-cd /mnt/c/shengxin/data/Burkholderia
+cd /mnt/c/shengxin/data/Frankiaceae
 
 ulimit -n `ulimit -Hn`
 
-cp ASSEMBLY/Burkholderia.assembly.tsv summary/
-nwr template /mnt/c/shengxin/data/Burkholderia/assembly/Burkholderia.assembly.tsv \
+cp ASSEMBLY/Frankiaceae.assembly.tsv summary/
+nwr template /mnt/c/shengxin/data/Frankiaceae/assembly/Frankiaceae.assembly.tsv \
     --bs
 
 head BioSample/sample.tsv
-#SAMD00000356    Parab_fer_NBRC_106233_GCF_000685035_1   Paraburkholderia_ferrariae
-#SAMD00000357    Parab_mim_NBRC_106338_GCF_000739815_1   Paraburkholderia_mimosarum
+#SAMD00000356    Parab_fer_NBRC_106233_GCF_000685035_1   ParaFrankiaceae_ferrariae
+#SAMD00000357    Parab_mim_NBRC_106338_GCF_000739815_1   ParaFrankiaceae_mimosarum
 
 bash BioSample/download.sh
 #在本地下载
@@ -432,18 +378,18 @@ cp Biosample/biosample.tsv summary/
 
 #biosample.tsv 文件内容
 #name   BioSample       sample name     observed biotic relationship    collection date environmental medium    geographic location     isolation and growth condition  latitude and longitude  locus_tag_prefix        number of replicons    project name     reference for biomaterial       strain  trophic level   source material identifiers     isolation sourchost     External Id     Submitter Id    culture collection      host health state       anonymized name common name    serovar  subject id      supplier_name   investigation type      sequencing method       assembly quality        assembly software       binning parameters      binning software        completeness score      completeness software   contamination score     metagenomic source      sample derived from     taxonomic identity marker       scientific_name local environmental context     broker name     isolate Alias   SRA accession   Title   alias   strain_synonym  substrain      anonymized_name  relationship to oxygen  collected by    passage history GOLD Stamp ID   Gram Staining   disease environment     Cell Shape      Motility        Temperature Range       Sporulation     Phenotypes      Isolation Site  Temperature Optimum     host disease    sample type     environmental package   biomaterial provider    depth   alternate strain name   organism modifier note  host age        note    host sex        host disease outcome    genotype        host tissue sampled     alternate_ID    elevation       identified by   host description        serotype        pathotype      subgroup subtype specimen_category       provider        collection method       uFORGE_Sample_ID        pH      altitudhost disease stage       host subject id isolate name alias      identification method   biovar  phylotype       sample size     metagenomic     derived from    host taxonomy ID        source type     Phylotype       temperature     sample storage location sample storage temperature      host infra specific name
-Parab_fer_NBRC_106233_GCF_000685035_1   SAMD00000356    NBRC 106233     free living             Iron Mine       Brazil:Minas Gerais     17012573                BFE01S          Burkholderia ferrariae NBRC 106233 genome sequencing project   NBRC 106233      heterotroph     NBRC 106233
+Parab_fer_NBRC_106233_GCF_000685035_1   SAMD00000356    NBRC 106233     free living             Iron Mine       Brazil:Minas Gerais     17012573                BFE01S          Frankiaceae ferrariae NBRC 106233 genome sequencing project   NBRC 106233      heterotroph     NBRC 106233
 
 rsync -avP \
-    /mnt/c/shengxin/data/Burkholderia/Biosample/ \
-    wangq@202.119.37.251:qyl/data/Burkholderia/Biosample
+    /mnt/c/shengxin/data/Frankiaceae/Biosample/ \
+    wangq@20219.37.251:qyl/data/Frankiaceae/Biosample
 ```
 
 ## MinHash
 ```shell
-cd /mnt/c/shengxin/data/Burkholderia
+cd /mnt/c/shengxin/data/Frankiaceae
 
-nwr template /mnt/c/shengxin/data/Burkholderia/summary/Burkholderia.assembly.tsv \
+nwr template /mnt/c/shengxin/data/Frankiaceae/summary/Frankiaceae.assembly.tsv \
     --mh \
     --parallel 16 \
     --in ASSEMBLY/pass.lst \
@@ -474,20 +420,20 @@ bash MinHash/nr.sh
 bash MinHash/dist.sh
 
 rsync -avP \
-    wangq@202.119.37.251:/share/home/wangq/qyl/data/Burkholderia/Biosample/ \
-    /mnt/c/shengxin/data/Burkholderia/Biosample
+    wangq@20219.37.251:/share/home/wangq/qyl/data/Frankiaceae/Biosample/ \
+    /mnt/c/shengxin/data/Frankiaceae/Biosample
 
 rsync -avP \
-    wangq@202.119.37.251:/share/home/wangq/qyl/data/Burkholderia/MinHash/ \
-    /mnt/c/shengxin/data/Burkholderia/MinHash
+    wangq@20219.37.251:/share/home/wangq/qyl/data/Frankiaceae/MinHash/ \
+    /mnt/c/shengxin/data/Frankiaceae/MinHash
     #本地运行   
 
 ```
 
 ### Condense branches in the minhash tree
 ```shell
-mkdir -p cd /mnt/c/shengxin/data/Burkholderia/tree
-cd /mnt/c/shengxin/data/Burkholderia/tree
+mkdir -p cd /mnt/c/shengxin/data/Frankiaceae/tree
+cd /mnt/c/shengxin/data/Frankiaceae/tree
 
 nw_reroot ../MinHash/tree.nwk S_vio |
     nw_order -cn - \
@@ -518,13 +464,13 @@ done
 
 # png
 nw_display -s -b 'visibility:hidden' -w 1200 -v 20 minhash.species.newick |
-    rsvg-convert -o Burkholderia.minhash.png
+    rsvg-convert -o Frankiaceae.minhash.png
 #报错：超过了 32767 像素，这是 rsvg-convert 当前无法处理的最大尺寸限制。
-nw_display -s -b 'visibility:hidden' -w 800 -v 15 minhash.species.newick | rsvg-convert -o Burkholderia.minhash.png
+nw_display -s -b 'visibility:hidden' -w 800 -v 15 minhash.species.newick | rsvg-convert -o Frankiaceae.minhash.png
 #还是过大
 
 nw_display -s -b 'visibility:hidden' -w 600 -v 10 minhash.species.newick |
-    rsvg-convert -o Burkholderia.minhash.png
+    rsvg-convert -o Frankiaceae.minhash.png
 
 ```
 ## Count valid species and strains #计算有效物种数和菌株数
@@ -532,8 +478,8 @@ nw_display -s -b 'visibility:hidden' -w 600 -v 10 minhash.species.newick |
 ### For *genomic alignments* 用于*基因组比对*
 
 ```shell
-cd /mnt/c/shengxin/data/Burkholderia
-nwr template /mnt/c/shengxin/data/Burkholderia/assembly/Burkholderia.assembly.tsv \
+cd /mnt/c/shengxin/data/Frankiaceae
+nwr template /mnt/c/shengxin/data/Frankiaceae/assembly/Frankiaceae.assembly.tsv \
     --count \
     --in ASSEMBLY/pass.lst \
     --not-in MinHash/abnormal.lst \
@@ -562,7 +508,7 @@ cp Count/strains.taxon.tsv summary/genome.taxon.tsv
 ```
 | genus               | #species | #strains |
 | ------------------- | -------: | -------: |
-| Burkholderia        |       41 |     3969 |
+| Frankiaceae        |       41 |     3969 |
 | Caballeronia        |       23 |       36 |
 | Chitinasiproducens  |        1 |        1 |
 | Chitinimonas        |        3 |        4 |
@@ -574,7 +520,7 @@ cp Count/strains.taxon.tsv summary/genome.taxon.tsv
 | Mycetohabitans      |        2 |        2 |
 | Mycoavidus          |        1 |        1 |
 | Pandoraea           |       28 |       64 |
-| Paraburkholderia    |       83 |      218 |
+| ParaFrankiaceae    |       83 |      218 |
 | Pararobbsia         |        2 |        2 |
 | Polynucleobacter    |       29 |      157 |
 | Quisquiliibacterium |        1 |        1 |
@@ -587,7 +533,7 @@ cp Count/strains.taxon.tsv summary/genome.taxon.tsv
 
 | genus               | #species | #strains |
 | ------------------- | -------: | -------: |
-| Burkholderia        |       41 |     3969 |
+| Frankiaceae        |       41 |     3969 |
 | Caballeronia        |       23 |       36 |
 | Chitinasiproducens  |        1 |        1 |
 | Chitinimonas        |        3 |        4 |
@@ -599,7 +545,7 @@ cp Count/strains.taxon.tsv summary/genome.taxon.tsv
 | Mycetohabitans      |        2 |        2 |
 | Mycoavidus          |        1 |        1 |
 | Pandoraea           |       28 |       64 |
-| Paraburkholderia    |       83 |      218 |
+| ParaFrankiaceae    |       83 |      218 |
 | Pararobbsia         |        2 |        2 |
 | Polynucleobacter    |       29 |      157 |
 | Quisquiliibacterium |        1 |        1 |
@@ -608,55 +554,55 @@ cp Count/strains.taxon.tsv summary/genome.taxon.tsv
 | Saccharothrix       |        1 |        1 |
 | Trinickia           |        7 |       14 |
 | Zeimonas            |        2 |        2 |
-qin@Qin:/mnt/c/shengxin/data/Burkholderia$ bash Count/lineage.sh
+qin@Qin:/mnt/c/shengxin/data/Frankiaceae$ bash Count/lineage.sh
 ==> Count/lineage.sh <==
 ==> Done.
-qin@Qin:/mnt/c/shengxin/data/Burkholderia$ cat Count/lineage.count.tsv |
+qin@Qin:/mnt/c/shengxin/data/Frankiaceae$ cat Count/lineage.count.tsv |
 >     mlr --itsv --omd cat |
 >     perl -nl -e 's/-\s*\|$/-:|/; print'
 | #family            | genus               | species                             | count |
 | ------------------ | ------------------- | ----------------------------------- | ----: |
-| Burkholderiaceae   | Burkholderia        | Burkholderia aenigmatica            |    20 |
-|                    |                     | Burkholderia ambifaria              |    89 |
-|                    |                     | Burkholderia anthina                |    27 |
-|                    |                     | Burkholderia arboris                |     6 |
-|                    |                     | Burkholderia catarinensis           |     1 |
-|                    |                     | Burkholderia cenocepacia            |   395 |
-|                    |                     | Burkholderia cepacia                |   234 |
-|                    |                     | Burkholderia contaminans            |    86 |
-|                    |                     | Burkholderia diffusa                |    16 |
-|                    |                     | Burkholderia dolosa                 |    20 |
-|                    |                     | Burkholderia gladioli               |   260 |
-|                    |                     | Burkholderia glumae                 |    63 |
-|                    |                     | Burkholderia guangdongensis         |     1 |
-|                    |                     | Burkholderia humptydooensis         |     3 |
-|                    |                     | Burkholderia lata                   |    16 |
-|                    |                     | Burkholderia latens                 |     6 |
-|                    |                     | Burkholderia mallei                 |    58 |
-|                    |                     | Burkholderia mayonis                |     2 |
-|                    |                     | Burkholderia metallica              |     7 |
-|                    |                     | Burkholderia multivorans            |   490 |
-|                    |                     | Burkholderia oklahomensis           |     9 |
-|                    |                     | Burkholderia orbicola               |     3 |
-|                    |                     | Burkholderia paludis                |     3 |
-|                    |                     | Burkholderia perseverans            |     1 |
-|                    |                     | Burkholderia plantarii              |     5 |
-|                    |                     | Burkholderia pseudomallei           |  1504 |
-|                    |                     | Burkholderia pseudomultivorans      |    10 |
-|                    |                     | Burkholderia puraquae               |     2 |
-|                    |                     | Burkholderia pyrrocinia             |     3 |
-|                    |                     | Burkholderia reimsis                |     1 |
-|                    |                     | Burkholderia savannae               |     4 |
-|                    |                     | Burkholderia semiarida              |     4 |
-|                    |                     | Burkholderia seminalis              |    15 |
-|                    |                     | Burkholderia singularis             |     1 |
-|                    |                     | Burkholderia sola                   |     1 |
-|                    |                     | Burkholderia stabilis               |     2 |
-|                    |                     | Burkholderia stagnalis              |   101 |
-|                    |                     | Burkholderia territorii             |    37 |
-|                    |                     | Burkholderia thailandensis          |    27 |
-|                    |                     | Burkholderia ubonensis              |   297 |
-|                    |                     | Burkholderia vietnamiensis          |   139 |
+| Frankiaceae   | Frankiaceae        | Frankiaceae aenigmatica            |    20 |
+|                    |                     | Frankiaceae ambifaria              |    89 |
+|                    |                     | Frankiaceae anthina                |    27 |
+|                    |                     | Frankiaceae arboris                |     6 |
+|                    |                     | Frankiaceae catarinensis           |     1 |
+|                    |                     | Frankiaceae cenocepacia            |   395 |
+|                    |                     | Frankiaceae cepacia                |   234 |
+|                    |                     | Frankiaceae contaminans            |    86 |
+|                    |                     | Frankiaceae diffusa                |    16 |
+|                    |                     | Frankiaceae dolosa                 |    20 |
+|                    |                     | Frankiaceae gladioli               |   260 |
+|                    |                     | Frankiaceae glumae                 |    63 |
+|                    |                     | Frankiaceae guangdongensis         |     1 |
+|                    |                     | Frankiaceae humptydooensis         |     3 |
+|                    |                     | Frankiaceae lata                   |    16 |
+|                    |                     | Frankiaceae latens                 |     6 |
+|                    |                     | Frankiaceae mallei                 |    58 |
+|                    |                     | Frankiaceae mayonis                |     2 |
+|                    |                     | Frankiaceae metallica              |     7 |
+|                    |                     | Frankiaceae multivorans            |   490 |
+|                    |                     | Frankiaceae oklahomensis           |     9 |
+|                    |                     | Frankiaceae orbicola               |     3 |
+|                    |                     | Frankiaceae paludis                |     3 |
+|                    |                     | Frankiaceae perseverans            |     1 |
+|                    |                     | Frankiaceae plantarii              |     5 |
+|                    |                     | Frankiaceae pseudomallei           |  1504 |
+|                    |                     | Frankiaceae pseudomultivorans      |    10 |
+|                    |                     | Frankiaceae puraquae               |     2 |
+|                    |                     | Frankiaceae pyrrocinia             |     3 |
+|                    |                     | Frankiaceae reimsis                |     1 |
+|                    |                     | Frankiaceae savannae               |     4 |
+|                    |                     | Frankiaceae semiarida              |     4 |
+|                    |                     | Frankiaceae seminalis              |    15 |
+|                    |                     | Frankiaceae singularis             |     1 |
+|                    |                     | Frankiaceae sola                   |     1 |
+|                    |                     | Frankiaceae stabilis               |     2 |
+|                    |                     | Frankiaceae stagnalis              |   101 |
+|                    |                     | Frankiaceae territorii             |    37 |
+|                    |                     | Frankiaceae thailandensis          |    27 |
+|                    |                     | Frankiaceae ubonensis              |   297 |
+|                    |                     | Frankiaceae vietnamiensis          |   139 |
 |                    | Caballeronia        | Caballeronia arationis              |     1 |
 |                    |                     | Caballeronia arvi                   |     1 |
 |                    |                     | Caballeronia calidae                |     1 |
@@ -743,89 +689,89 @@ qin@Qin:/mnt/c/shengxin/data/Burkholderia$ cat Count/lineage.count.tsv |
 |                    |                     | Pandoraea terrigena                 |     1 |
 |                    |                     | Pandoraea thiooxydans               |     2 |
 |                    |                     | Pandoraea vervacti                  |     1 |
-|                    | Paraburkholderia    | Paraburkholderia acidicola          |     1 |
-|                    |                     | Paraburkholderia acidipaludis       |     1 |
-|                    |                     | Paraburkholderia acidiphila         |     1 |
-|                    |                     | Paraburkholderia acidisoli          |     1 |
-|                    |                     | Paraburkholderia agricolaris        |     1 |
-|                    |                     | Paraburkholderia antibiotica        |     1 |
-|                    |                     | Paraburkholderia aspalathi          |     7 |
-|                    |                     | Paraburkholderia atlantica          |     7 |
-|                    |                     | Paraburkholderia azotifigens        |     1 |
-|                    |                     | Paraburkholderia bonniea            |     1 |
-|                    |                     | Paraburkholderia bryophila          |     4 |
-|                    |                     | Paraburkholderia caballeronis       |     9 |
-|                    |                     | Paraburkholderia caffeinilytica     |     3 |
-|                    |                     | Paraburkholderia caffeinitolerans   |     1 |
-|                    |                     | Paraburkholderia caledonica         |     5 |
-|                    |                     | Paraburkholderia caribensis         |     9 |
-|                    |                     | Paraburkholderia diazotrophica      |     1 |
-|                    |                     | Paraburkholderia dilworthii         |     1 |
-|                    |                     | Paraburkholderia dinghuensis        |     1 |
-|                    |                     | Paraburkholderia dioscoreae         |     1 |
-|                    |                     | Paraburkholderia dipogonis          |     1 |
-|                    |                     | Paraburkholderia dokdonensis        |     1 |
-|                    |                     | Paraburkholderia domus              |     7 |
-|                    |                     | Paraburkholderia eburnea            |     2 |
-|                    |                     | Paraburkholderia edwinii            |     1 |
-|                    |                     | Paraburkholderia ferrariae          |     1 |
-|                    |                     | Paraburkholderia flava              |     1 |
-|                    |                     | Paraburkholderia franconis          |     1 |
-|                    |                     | Paraburkholderia fungorum           |    17 |
-|                    |                     | Paraburkholderia fynbosensis        |     1 |
-|                    |                     | Paraburkholderia gardini            |     2 |
-|                    |                     | Paraburkholderia ginsengisoli       |     2 |
-|                    |                     | Paraburkholderia ginsengiterrae     |     2 |
-|                    |                     | Paraburkholderia graminis           |     3 |
-|                    |                     | Paraburkholderia guartelaensis      |     1 |
-|                    |                     | Paraburkholderia haematera          |     1 |
-|                    |                     | Paraburkholderia hayleyella         |     1 |
-|                    |                     | Paraburkholderia heleia             |     1 |
-|                    |                     | Paraburkholderia hiiakae            |     1 |
-|                    |                     | Paraburkholderia hospita            |     7 |
-|                    |                     | Paraburkholderia humisilvae         |     1 |
-|                    |                     | Paraburkholderia kirstenboschensis  |     1 |
-|                    |                     | Paraburkholderia kururiensis        |     4 |
-|                    |                     | Paraburkholderia lacunae            |     1 |
-|                    |                     | Paraburkholderia lycopersici        |     1 |
-|                    |                     | Paraburkholderia madseniana         |     3 |
-|                    |                     | Paraburkholderia megapolitana       |     3 |
-|                    |                     | Paraburkholderia metrosideri        |     1 |
-|                    |                     | Paraburkholderia mimosarum          |     4 |
-|                    |                     | Paraburkholderia monticola          |     1 |
-|                    |                     | Paraburkholderia nemoris            |     6 |
-|                    |                     | Paraburkholderia pallida            |     1 |
-|                    |                     | Paraburkholderia panacisoli         |     1 |
-|                    |                     | Paraburkholderia phenazinium        |     3 |
-|                    |                     | Paraburkholderia phenoliruptrix     |     7 |
-|                    |                     | Paraburkholderia phosphatilytica    |     1 |
-|                    |                     | Paraburkholderia phymatum           |     2 |
-|                    |                     | Paraburkholderia piptadeniae        |     1 |
-|                    |                     | Paraburkholderia podalyriae         |     1 |
-|                    |                     | Paraburkholderia polaris            |     1 |
-|                    |                     | Paraburkholderia rhizosphaerae      |     1 |
-|                    |                     | Paraburkholderia rhynchosiae        |     2 |
-|                    |                     | Paraburkholderia ribeironis         |     1 |
-|                    |                     | Paraburkholderia sabiae             |     2 |
-|                    |                     | Paraburkholderia sacchari           |     3 |
-|                    |                     | Paraburkholderia saeva              |     3 |
-|                    |                     | Paraburkholderia sartisoli          |     1 |
-|                    |                     | Paraburkholderia silvatlantica      |     5 |
-|                    |                     | Paraburkholderia silviterrae        |     1 |
-|                    |                     | Paraburkholderia solisilvae         |     1 |
-|                    |                     | Paraburkholderia sprentiae          |     2 |
-|                    |                     | Paraburkholderia steynii            |     1 |
-|                    |                     | Paraburkholderia strydomiana        |     2 |
-|                    |                     | Paraburkholderia susongensis        |     1 |
-|                    |                     | Paraburkholderia tagetis            |     1 |
-|                    |                     | Paraburkholderia terrae             |     4 |
-|                    |                     | Paraburkholderia terricola          |     4 |
-|                    |                     | Paraburkholderia tropica            |    14 |
-|                    |                     | Paraburkholderia tuberum            |     3 |
-|                    |                     | Paraburkholderia ultramafica        |     1 |
-|                    |                     | Paraburkholderia unamae             |     3 |
-|                    |                     | Paraburkholderia xenovorans         |     2 |
-|                    |                     | Paraburkholderia youngii            |     5 |
+|                    | ParaFrankiaceae    | ParaFrankiaceae acidicola          |     1 |
+|                    |                     | ParaFrankiaceae acidipaludis       |     1 |
+|                    |                     | ParaFrankiaceae acidiphila         |     1 |
+|                    |                     | ParaFrankiaceae acidisoli          |     1 |
+|                    |                     | ParaFrankiaceae agricolaris        |     1 |
+|                    |                     | ParaFrankiaceae antibiotica        |     1 |
+|                    |                     | ParaFrankiaceae aspalathi          |     7 |
+|                    |                     | ParaFrankiaceae atlantica          |     7 |
+|                    |                     | ParaFrankiaceae azotifigens        |     1 |
+|                    |                     | ParaFrankiaceae bonniea            |     1 |
+|                    |                     | ParaFrankiaceae bryophila          |     4 |
+|                    |                     | ParaFrankiaceae caballeronis       |     9 |
+|                    |                     | ParaFrankiaceae caffeinilytica     |     3 |
+|                    |                     | ParaFrankiaceae caffeinitolerans   |     1 |
+|                    |                     | ParaFrankiaceae caledonica         |     5 |
+|                    |                     | ParaFrankiaceae caribensis         |     9 |
+|                    |                     | ParaFrankiaceae diazotrophica      |     1 |
+|                    |                     | ParaFrankiaceae dilworthii         |     1 |
+|                    |                     | ParaFrankiaceae dinghuensis        |     1 |
+|                    |                     | ParaFrankiaceae dioscoreae         |     1 |
+|                    |                     | ParaFrankiaceae dipogonis          |     1 |
+|                    |                     | ParaFrankiaceae dokdonensis        |     1 |
+|                    |                     | ParaFrankiaceae domus              |     7 |
+|                    |                     | ParaFrankiaceae eburnea            |     2 |
+|                    |                     | ParaFrankiaceae edwinii            |     1 |
+|                    |                     | ParaFrankiaceae ferrariae          |     1 |
+|                    |                     | ParaFrankiaceae flava              |     1 |
+|                    |                     | ParaFrankiaceae franconis          |     1 |
+|                    |                     | ParaFrankiaceae fungorum           |    17 |
+|                    |                     | ParaFrankiaceae fynbosensis        |     1 |
+|                    |                     | ParaFrankiaceae gardini            |     2 |
+|                    |                     | ParaFrankiaceae ginsengisoli       |     2 |
+|                    |                     | ParaFrankiaceae ginsengiterrae     |     2 |
+|                    |                     | ParaFrankiaceae graminis           |     3 |
+|                    |                     | ParaFrankiaceae guartelaensis      |     1 |
+|                    |                     | ParaFrankiaceae haematera          |     1 |
+|                    |                     | ParaFrankiaceae hayleyella         |     1 |
+|                    |                     | ParaFrankiaceae heleia             |     1 |
+|                    |                     | ParaFrankiaceae hiiakae            |     1 |
+|                    |                     | ParaFrankiaceae hospita            |     7 |
+|                    |                     | ParaFrankiaceae humisilvae         |     1 |
+|                    |                     | ParaFrankiaceae kirstenboschensis  |     1 |
+|                    |                     | ParaFrankiaceae kururiensis        |     4 |
+|                    |                     | ParaFrankiaceae lacunae            |     1 |
+|                    |                     | ParaFrankiaceae lycopersici        |     1 |
+|                    |                     | ParaFrankiaceae madseniana         |     3 |
+|                    |                     | ParaFrankiaceae megapolitana       |     3 |
+|                    |                     | ParaFrankiaceae metrosideri        |     1 |
+|                    |                     | ParaFrankiaceae mimosarum          |     4 |
+|                    |                     | ParaFrankiaceae monticola          |     1 |
+|                    |                     | ParaFrankiaceae nemoris            |     6 |
+|                    |                     | ParaFrankiaceae pallida            |     1 |
+|                    |                     | ParaFrankiaceae panacisoli         |     1 |
+|                    |                     | ParaFrankiaceae phenazinium        |     3 |
+|                    |                     | ParaFrankiaceae phenoliruptrix     |     7 |
+|                    |                     | ParaFrankiaceae phosphatilytica    |     1 |
+|                    |                     | ParaFrankiaceae phymatum           |     2 |
+|                    |                     | ParaFrankiaceae piptadeniae        |     1 |
+|                    |                     | ParaFrankiaceae podalyriae         |     1 |
+|                    |                     | ParaFrankiaceae polaris            |     1 |
+|                    |                     | ParaFrankiaceae rhizosphaerae      |     1 |
+|                    |                     | ParaFrankiaceae rhynchosiae        |     2 |
+|                    |                     | ParaFrankiaceae ribeironis         |     1 |
+|                    |                     | ParaFrankiaceae sabiae             |     2 |
+|                    |                     | ParaFrankiaceae sacchari           |     3 |
+|                    |                     | ParaFrankiaceae saeva              |     3 |
+|                    |                     | ParaFrankiaceae sartisoli          |     1 |
+|                    |                     | ParaFrankiaceae silvatlantica      |     5 |
+|                    |                     | ParaFrankiaceae silviterrae        |     1 |
+|                    |                     | ParaFrankiaceae solisilvae         |     1 |
+|                    |                     | ParaFrankiaceae sprentiae          |     2 |
+|                    |                     | ParaFrankiaceae steynii            |     1 |
+|                    |                     | ParaFrankiaceae strydomiana        |     2 |
+|                    |                     | ParaFrankiaceae susongensis        |     1 |
+|                    |                     | ParaFrankiaceae tagetis            |     1 |
+|                    |                     | ParaFrankiaceae terrae             |     4 |
+|                    |                     | ParaFrankiaceae terricola          |     4 |
+|                    |                     | ParaFrankiaceae tropica            |    14 |
+|                    |                     | ParaFrankiaceae tuberum            |     3 |
+|                    |                     | ParaFrankiaceae ultramafica        |     1 |
+|                    |                     | ParaFrankiaceae unamae             |     3 |
+|                    |                     | ParaFrankiaceae xenovorans         |     2 |
+|                    |                     | ParaFrankiaceae youngii            |     5 |
 |                    | Pararobbsia         | Pararobbsia alpina                  |     1 |
 |                    |                     | Pararobbsia silviterrae             |     1 |
 |                    | Polynucleobacter    | Polynucleobacter acidiphobus        |     1 |
@@ -884,9 +830,9 @@ qin@Qin:/mnt/c/shengxin/data/Burkholderia$ cat Count/lineage.count.tsv |
 ### For *protein families* #用于*蛋白质家族*
 
 ```shell
-cd /mnt/c/shengxin/data/Burkholderia/
+cd /mnt/c/shengxin/data/Frankiaceae/
 
-nwr template /mnt/c/shengxin/data/Burkholderia/assembly/Burkholderia.assembly.tsv \
+nwr template /mnt/c/shengxin/data/Frankiaceae/assembly/Frankiaceae.assembly.tsv \
     --count \
     --in ASSEMBLY/pass.lst \
     --not-in MinHash/abnormal.lst \
@@ -909,7 +855,7 @@ cp Count/strains.taxon.tsv summary/protein.taxon.tsv
 ```
 | genus               | #species | #strains |
 | ------------------- | -------: | -------: |
-| Burkholderia        |       41 |     3962 |
+| Frankiaceae        |       41 |     3962 |
 | Caballeronia        |       23 |       36 |
 | Chitinasiproducens  |        1 |        1 |
 | Chitinimonas        |        3 |        4 |
@@ -921,7 +867,7 @@ cp Count/strains.taxon.tsv summary/protein.taxon.tsv
 | Mycetohabitans      |        2 |        2 |
 | Mycoavidus          |        1 |        1 |
 | Pandoraea           |       28 |       63 |
-| Paraburkholderia    |       83 |      217 |
+| ParaFrankiaceae    |       83 |      217 |
 | Pararobbsia         |        2 |        2 |
 | Polynucleobacter    |       29 |      157 |
 | Quisquiliibacterium |        1 |        1 |
@@ -934,9 +880,9 @@ cp Count/strains.taxon.tsv summary/protein.taxon.tsv
 ## Collect Protein
 
 ```shell
-cd /mnt/c/shengxin/data/Burkholderia/
+cd /mnt/c/shengxin/data/Frankiaceae/
 
-nwr template /mnt/c/shengxin/data/Burkholderia/assembly/Burkholderia.assembly.tsv \
+nwr template /mnt/c/shengxin/data/Frankiaceae/assembly/Frankiaceae.assembly.tsv \
     --pro \
     --in ASSEMBLY/pass.lst \
     --not-in MinHash/abnormal.lst \
@@ -966,7 +912,7 @@ cat Protein/counts.tsv |
 ### Find corresponding Protein by `hmmsearch` #通过`hmmsearch`查找相应的蛋白质
 
 ```shell
-cd /mnt/c/shengxin/data/Burkholderia/
+cd /mnt/c/shengxin/data/Frankiaceae/
 mkdir -p HMM
 E_VALUE=1e-20
 
@@ -981,31 +927,12 @@ E_VALUE=1e-20
             fi
 
             gzip -dcf ASSEMBLY/{2}/{1}/*_protein.faa.gz |
-                hmmsearch -E ${E_VALUE} --domE ${E_VALUE} --noali --notextw ~/qyl/data/Burkholderia/HMM/DddA-like.HMM - |
+                hmmsearch -E ${E_VALUE} --domE ${E_VALUE} --noali --notextw HMM/DddA-like.HMM - |
                 grep '>>' |
                 perl -nl -e ' m(>>\s+(\S+)) and printf qq(%s\t%s\n), \$1, {1}; '
         " \
-        > ~/qyl/data/Burkholderia/Protein/replace.tsv
-        #超算上找所有assembly有DddA-like的
+        > HMM/replace.tsv
 
-    cat Protein/species.tsv |
-        tsv-join -f ASSEMBLY/pass.lst -k 1 |
-        tsv-join -e -f MinHash/abnormal.lst -k 1 |
-        tsv-join -e -f ASSEMBLY/omit.lst -k 1 |
-        parallel --colsep '\t' --no-run-if-empty --linebuffer -k -j 1 "
-            if [[ ! -d ASSEMBLY/{2}/{1} ]]; then
-                exit
-            fi
-
-            gzip -dcf ASSEMBLY/{2}/{1}/*_protein.faa.gz |
-                hmmsearch -E ${E_VALUE} --domE ${E_VALUE} --noali --notextw HMM/DYW.HMM - |
-                grep '>>' |
-                perl -nl -e ' m(>>\s+(\S+)) and printf qq(%s\t%s\n), \$1, {1}; '
-        " \
-        > HMM/DddA-replace.tsv
-        #伯克霍尔德属有DddA-like的
-
-    
     cat Protein/species.tsv |
         tsv-join -f ASSEMBLY/pass.lst -k 1 |
         tsv-join -e -f MinHash/abnormal.lst -k 1 |
@@ -1317,7 +1244,7 @@ E_VALUE=1e-20
 ```
 # 建立蛋白树
 ```shell
-cd /mnt/c/shengxin/data/Burkholderia/
+cd /mnt/c/shengxin/data/Frankiaceae/
 cat Protein/replace.tsv | tsv-select -f 2,1 > Protein/3.tsv
 faops some Protein/all.replace.fa.gz <(tsv-select -f 1 Protein/3.tsv) Protein/DddA-like.fa
 #Protein/3.tsv格式是B_pseudoma_UMC107_GCF_002921075_1_WP_004533223，
@@ -1339,8 +1266,8 @@ nw_display -s -b 'visibility:hidden' -w 1200 -v 20 Protein/DddA-like.reoot.newic
 ### Find corresponding Protein by `hmmsearch` #通过`hmmsearch`查找相应的蛋白质
 ```shell
 #TIGRFAM
-mkdir -p mnt/shengxin/data/Burkholderia/HMM/TIGRFAM
-cd mnt/shengxin/data/Burkholderia/HMM/TIGRFAM
+mkdir -p mnt/shengxin/data/Frankiaceae/HMM/TIGRFAM
+cd mnt/shengxin/data/Frankiaceae/HMM/TIGRFAM
 wget -N --content-disposition ftp://ftp.jcvi.org/data/TIGRFAMs/14.0_Release/TIGRFAMs_14.0_HMM.tar.gz
 
 mkdir -p HMM
@@ -1354,16 +1281,16 @@ tar --directory HMM -xzvf TIGRFAMs_14.0_HMM.tar.gz TIGR02013.HMM
 #TIGR02013.HMM：指定要提取的文件名
 tar --directory HMM -xzvf TIGRFAMs_14.0_HMM.tar.gz TIGR00485.HMM
 
-mkdir -p /mnt/c/shengxin/data/Burkholderia/HMM/bac120
-cd /mnt/c/shengxin/data/Burkholderia/HMM/bac120
+mkdir -p /mnt/c/shengxin/data/Frankiaceae/HMM/bac120
+cd /mnt/c/shengxin/data/Frankiaceae/HMM/bac120
 
 
 #下载bac120.tsv文件
-mnt/shengxin/data/Burkholderia/HMM/bac120/
+mnt/shengxin/data/Frankiaceae/HMM/bac120/
 
 mkdir -p HMM
 
-cat /mnt/c/shengxin/data/Burkholderia/HMM/bac120/bac120.tsv |
+cat /mnt/c/shengxin/data/Frankiaceae/HMM/bac120/bac120.tsv |
     sed '1d' |
     tsv-select -f 1 |
     grep '^TIGR' |
@@ -1371,7 +1298,7 @@ cat /mnt/c/shengxin/data/Burkholderia/HMM/bac120/bac120.tsv |
         tar --directory HMM -xzvf ../TIGRFAM/TIGRFAMs_14.0_HMM.tar.gz {}.HMM
     '
 
-cat /mnt/c/shengxin/data/Burkholderia/HMM/bac120/bac120.tsv |
+cat /mnt/c/shengxin/data/Frankiaceae/HMM/bac120/bac120.tsv |
     sed '1d' |
     tsv-select -f 1 |
     grep -v '^TIGR' |
@@ -1382,7 +1309,7 @@ cat /mnt/c/shengxin/data/Burkholderia/HMM/bac120/bac120.tsv |
 E_VALUE=1e-20
 
 # Find all genes
-cd /mnt/c/shengxin/data/Burkholderia/
+cd /mnt/c/shengxin/data/Frankiaceae/
 cat Protein/replace.tsv |cut -f 2 >Protein/1.tsv
 cat Protein/species.tsv |tsv-join -f Protein/1.tsv -k 1 -d 1 >Protein/2.tsv
 cat Protein/2.tsv | tsv-select -f 2,1 > temp.tsv
@@ -1408,7 +1335,7 @@ done
 ```
 ### Align and concat marker genes to create species tree #比对和合并标记基因，创建物种树
 ```shell
-cd /mnt/c/shengxin/data/Burkholderia/
+cd /mnt/c/shengxin/data/Frankiaceae/
 
 cat HMM/bac120/bac120.tsv | cut -f 1 |
     parallel --no-run-if-empty --linebuffer -k -j 4 '
@@ -1517,10 +1444,9 @@ nw_reroot Protein/bac120.trim.newick S_vio |
 
 # png
 nw_display -s -b 'visibility:hidden' -w 1200 -v 20 Protein/bac120.reroot.newick |
-    rsvg-convert -o tree/Burkholderia.marker.png
+    rsvg-convert -o tree/Frankiaceae.marker.png
 
 rsync -avP \
-    /mnt/c/shengxin/data/Burkholderia/summary/ \
-    wangq@202.119.37.251:/share/home/wangq/qyl/data/Burkholderia/summary
+    /mnt/c/shengxin/data/Frankiaceae/HMM/ \
+    wangq@202.119.37.251:/share/home/wangq/qyl/data/Frankiaceae/HMM
 ```
-
